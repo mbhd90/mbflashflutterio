@@ -1,0 +1,5 @@
+keytool -genkey -v -keystore bm-flash-keystore.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias bm-flash
+
+  cle: bm-flash
+  password: bm-flash
+  CN=MBHD90, OU=BM-GROUP, O=BM-GROUP, L=DOUALA, ST=LITTORAL, C=CM

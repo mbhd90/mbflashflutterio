@@ -1,0 +1,171 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lazy_load_scrollview/lazy_load_scrollview.dart';
+import '/utils/language_string.dart';
+import '/widgets/capitalized_word.dart';
+import '/core/router_name.dart';
+import '/modules/category/component/drawer_filter.dart';
+import '/utils/constants.dart';
+
+import '../../widgets/rounded_app_bar.dart';
+import 'component/product_card.dart';
+import 'controller/cubit/category_cubit.dart';
+
+class SingleCategoryProductScreen extends StatefulWidget {
+  const SingleCategoryProductScreen({
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  State<SingleCategoryProductScreen> createState() =>
+      _SingleCategoryProductScreenState();
+}
+
+class _SingleCategoryProductScreenState
+    extends State<SingleCategoryProductScreen> {
+  int page = 1;
+  int perPage = 10;
+  bool scroolToBottom = false;
+  bool loadMore = true;
+  @override
+  Widget build(BuildContext context) {
+    final receiveName =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final title = receiveName['title'] as String;
+    final slug = receiveName['slug'] as String;
+    context.read<CategoryCubit>().getCategoryProduct(slug, 1, 10);
+
+    return Scaffold(
+        endDrawer: const DrawerFilter(),
+        appBar: RoundedAppBar(
+          titleText: title.capitalizeByWord(),
+          onTap: () {
+            Navigator.popAndPushNamed(
+                context, RouteNames.allCategoryListScreen);
+          },
+        ),
+        body: BlocBuilder<CategoryCubit, CategoryState>(
+          builder: (context, state) {
+            if (state is CategoryLoadingState) {
+              return CategoryLoad(
+                  slug: slug,
+                  page: page++,
+                  perPage: perPage,
+                  scroolToBottom: scroolToBottom,
+                  loadMore: true,
+                  loading: true);
+              //return const Center(child: CircularProgressIndicator());
+            } else if (state is CategoryLoadedState) {
+              if (state.categoryProducts.isEmpty) {
+                return Center(
+                    child: Text(Language.noItemsFound.capitalizeByWord()));
+              }
+              return CategoryLoad(
+                  slug: slug,
+                  page: page++,
+                  perPage: perPage,
+                  scroolToBottom: scroolToBottom,
+                  loadMore: true,
+                  loading: false);
+            } else if (state is CategoryErrorState) {
+              return Center(
+                child: Text(state.errorMessage),
+              );
+            }
+            return Center(
+              child: SizedBox(
+                child: Text(Language.somethingWentWrong.capitalizeByWord()),
+              ),
+            );
+          },
+        ));
+  }
+}
+
+// ignore: must_be_immutable
+class CategoryLoad extends StatelessWidget {
+  const CategoryLoad({
+    Key? key,
+    required this.slug,
+    required this.page,
+    required this.perPage,
+    required this.scroolToBottom,
+    required this.loadMore,
+    required this.loading,
+  }) : super(key: key);
+  final String slug;
+  final int page;
+  final int perPage;
+  final bool scroolToBottom;
+  final bool loadMore;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final categoryProduct = context.read<CategoryCubit>().categoryProducts;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(),
+              GestureDetector(
+                onTap: () => Scaffold.of(context).openEndDrawer(),
+                child: Container(
+                    alignment: Alignment.center,
+                    decoration:
+                        const BoxDecoration(color: lightningYellowColor),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0),
+                      child: Text(Language.filter.capitalizeByWord()),
+                    )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LazyLoadScrollView(
+            onEndOfPage: () {
+              if (loadMore) {
+                context
+                    .read<CategoryCubit>()
+                    .loadCategoryProducts(slug, page, perPage);
+              }
+            },
+            scrollOffset: 100,
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: GridView.builder(
+                itemCount: categoryProduct.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  mainAxisExtent: 230,
+                ),
+                itemBuilder: (BuildContext context, int index) {
+                  return ProductCard(productModel: categoryProduct[index]);
+                },
+
+                // delegate: SliverChildBuilderDelegate(
+                //       (BuildContext context, int index) {
+                //     return ;
+                //   },
+                //   childCount: categoryProduct.length,
+                // ),
+              ),
+            ),
+          ),
+          loading
+              ? const SizedBox(
+                  height: 200,
+                  child: Center(child: CircularProgressIndicator()))
+              : const SizedBox(height: 10)
+        ],
+      ),
+    );
+  }
+}
